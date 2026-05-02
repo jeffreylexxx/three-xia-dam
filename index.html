@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>三峡水库实时水情与发电监测</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #13202f;
+      --muted: #647383;
+      --line: #dce6ec;
+      --panel: rgba(255, 255, 255, .88);
+      --river: #0277a8;
+      --cyan: #14b8a6;
+      --green: #3f8f4f;
+      --gold: #c88a18;
+      --red: #cf5a4c;
+      --bg: #eef6f7;
+      --shadow: 0 18px 50px rgba(23, 54, 72, .12);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(239, 248, 250, .92), rgba(238, 246, 247, .96)),
+        url("https://upload.wikimedia.org/wikipedia/commons/0/08/Three_Gorges_Dam%2C_China.jpg") center/cover fixed;
+    }
+
+    a { color: var(--river); }
+    button, select, input {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1480px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .hero {
+      min-height: 260px;
+      display: grid;
+      align-items: end;
+      padding: 32px 0 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 12px;
+      max-width: 980px;
+      font-size: clamp(34px, 6vw, 72px);
+      line-height: .96;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 900px;
+      margin: 0;
+      color: #394a58;
+      font-size: clamp(15px, 2vw, 20px);
+      line-height: 1.65;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      padding: 12px;
+      margin: 10px 0 18px;
+      background: rgba(246, 251, 252, .86);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(208, 224, 231, .78);
+      box-shadow: var(--shadow);
+    }
+
+    .segmented {
+      display: inline-grid;
+      grid-template-columns: repeat(3, minmax(72px, 1fr));
+      gap: 4px;
+      padding: 4px;
+      background: #dfeef1;
+      border: 1px solid #c9dde3;
+    }
+
+    .segmented button, .refresh, .ghost, .file-label {
+      min-height: 40px;
+      border: 0;
+      color: var(--ink);
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .segmented button.active {
+      color: white;
+      background: var(--river);
+      box-shadow: 0 8px 20px rgba(2, 119, 168, .24);
+    }
+
+    .refresh, .ghost, .file-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      border: 1px solid #c7d8de;
+      background: white;
+    }
+
+    .refresh {
+      color: white;
+      background: #163c52;
+      border-color: #163c52;
+    }
+
+    .refresh:disabled {
+      opacity: .62;
+      cursor: wait;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(207, 222, 228, .9);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .kpi {
+      grid-column: span 3;
+      min-height: 142px;
+      padding: 18px;
+      display: grid;
+      gap: 10px;
+      align-content: space-between;
+    }
+
+    .kpi .label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .kpi .value {
+      font-size: clamp(26px, 4vw, 42px);
+      font-weight: 780;
+      line-height: 1;
+    }
+
+    .kpi .note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .chart-card {
+      grid-column: span 6;
+      padding: 18px;
+      min-height: 360px;
+    }
+
+    .wide { grid-column: span 12; }
+    .tall { min-height: 440px; }
+
+    .card-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .card-head h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .card-head span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 300px;
+      display: block;
+    }
+
+    .tall canvas { height: 360px; }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      display: inline-block;
+      margin-right: 6px;
+      vertical-align: 0;
+      background: currentColor;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border-top: 1px solid var(--line);
+      max-height: 520px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 820px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 11px 12px;
+      border-bottom: 1px solid #e4edf1;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #eaf4f6;
+      color: #425564;
+      font-weight: 700;
+    }
+
+    td:first-child, th:first-child { text-align: left; }
+
+    .sources {
+      padding: 18px;
+      color: #415161;
+      line-height: 1.65;
+      font-size: 14px;
+    }
+
+    .sources h2 { margin: 0 0 8px; font-size: 18px; }
+    .sources p { margin: 8px 0; }
+
+    .callout {
+      padding: 14px 16px;
+      background: #fff7e5;
+      border: 1px solid #f0d59a;
+      color: #69512b;
+      line-height: 1.55;
+      font-size: 13px;
+    }
+
+    .empty {
+      min-height: 220px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      text-align: center;
+      padding: 24px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+    }
+
+    @media (max-width: 980px) {
+      .shell { width: min(100% - 20px, 760px); padding-top: 16px; }
+      .hero { min-height: 210px; padding-top: 22px; }
+      .toolbar { position: static; }
+      .kpi, .chart-card, .wide { grid-column: span 12; }
+      .kpi { min-height: 118px; }
+      canvas, .tall canvas { height: 280px; }
+    }
+
+    @media (max-width: 560px) {
+      .segmented { width: 100%; }
+      .toolbar > div { width: 100%; }
+      .refresh, .ghost, .file-label { width: 100%; justify-content: center; }
+      .hero h1 { font-size: 38px; }
+      .hero p { font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <h1>三峡水库实时水情与发电监测</h1>
+        <p>刷新时读取湖北水文三峡水库站公开页面，展示库水位、蓄水量、入库流量、出库流量，并以官方披露口径展示三峡电站发电数据。水能功率与利用率为基于真实水情数据的计算值，已单独标注。</p>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <div class="segmented" role="tablist" aria-label="时间范围">
+        <button data-range="7d" class="active" type="button">7 天</button>
+        <button data-range="30d" type="button">1 个月</button>
+        <button data-range="1y" type="button">1 年</button>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button id="refresh" class="refresh" type="button">↻ 刷新官方数据</button>
+        <button id="downloadCsv" class="ghost" type="button">↓ 导出当前 CSV</button>
+        <label class="file-label">
+          ↑ 导入官方电量 CSV
+          <input id="powerCsv" class="sr-only" type="file" accept=".csv,text/csv" />
+        </label>
+      </div>
+      <div id="status" class="status">准备读取官方源。</div>
+    </section>
+
+    <section class="grid" aria-live="polite">
+      <article class="panel kpi">
+        <div class="label">最新库水位</div>
+        <div id="kpiLevel" class="value">--</div>
+        <div id="kpiLevelNote" class="note">--</div>
+      </article>
+      <article class="panel kpi">
+        <div class="label">入库 / 出库</div>
+        <div id="kpiFlow" class="value">--</div>
+        <div id="kpiFlowNote" class="note">--</div>
+      </article>
+      <article class="panel kpi">
+        <div class="label">库容量</div>
+        <div id="kpiStorage" class="value">--</div>
+        <div id="kpiStorageNote" class="note">总库容 393 亿 m³</div>
+      </article>
+      <article class="panel kpi">
+        <div class="label">水能功率估算</div>
+        <div id="kpiPower" class="value">--</div>
+        <div id="kpiPowerNote" class="note">非官方发电功率，按出库流量和水头估算</div>
+      </article>
+
+      <article class="panel chart-card tall">
+        <div class="card-head">
+          <h2>水位与库容量过程线</h2>
+          <span>官方水情站数据</span>
+        </div>
+        <canvas id="levelChart"></canvas>
+        <div class="legend">
+          <span style="color:var(--river)"><i class="dot"></i>库水位 m</span>
+          <span style="color:var(--cyan)"><i class="dot"></i>蓄水量 10^6 m³</span>
+          <span style="color:var(--gold)"><i class="dot"></i>175 m 正常蓄水位</span>
+          <span style="color:var(--red)"><i class="dot"></i>145 m 汛限参考</span>
+        </div>
+      </article>
+
+      <article class="panel chart-card tall">
+        <div class="card-head">
+          <h2>进水量、出水量与放水变化</h2>
+          <span>m³/s，入库为官方页面有值的时点</span>
+        </div>
+        <canvas id="flowChart"></canvas>
+        <div class="legend">
+          <span style="color:var(--green)"><i class="dot"></i>入库流量</span>
+          <span style="color:var(--river)"><i class="dot"></i>出库/放水流量</span>
+          <span style="color:var(--red)"><i class="dot"></i>入出差</span>
+        </div>
+      </article>
+
+      <article class="panel chart-card">
+        <div class="card-head">
+          <h2>日均出库与理论日发电量</h2>
+          <span>由真实水情推导，不等同官方发电量</span>
+        </div>
+        <canvas id="dailyChart"></canvas>
+        <div class="legend">
+          <span style="color:var(--river)"><i class="dot"></i>日均出库 m³/s</span>
+          <span style="color:var(--gold)"><i class="dot"></i>理论日发电量 GWh</span>
+        </div>
+      </article>
+
+      <article class="panel chart-card">
+        <div class="card-head">
+          <h2>年度水位对比</h2>
+          <span>按月份汇总近一年日均水位</span>
+        </div>
+        <canvas id="yearChart"></canvas>
+        <div class="legend">
+          <span style="color:var(--river)"><i class="dot"></i>月均水位</span>
+          <span style="color:var(--cyan)"><i class="dot"></i>月内高低范围</span>
+        </div>
+      </article>
+
+      <article class="panel chart-card wide">
+        <div class="card-head">
+          <h2>发电量与设备利用率</h2>
+          <span>官方披露数据 + 可导入官方日发电量 CSV</span>
+        </div>
+        <div class="callout">
+          三峡集团/长江电力公开网页目前披露的是季度、年度、累计与调峰新闻口径，未找到小时级实时发电量公开接口。下面左侧为官方披露节点；右侧“利用率估算”使用真实水情计算的可用水能功率除以 2250 万千瓦装机容量，仅用于趋势观察。
+        </div>
+        <canvas id="powerChart" style="margin-top:14px;"></canvas>
+      </article>
+
+      <article class="panel wide">
+        <div class="card-head" style="padding:18px 18px 0;">
+          <h2>明细表</h2>
+          <span id="rowCount">0 条</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>库水位 m</th>
+                <th>蓄水量 10^6 m³</th>
+                <th>入库 m³/s</th>
+                <th>出库 m³/s</th>
+                <th>入出差 m³/s</th>
+                <th>估算功率 MW</th>
+                <th>估算利用率</th>
+              </tr>
+            </thead>
+            <tbody id="dataRows"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel sources wide">
+        <h2>数据来源与口径</h2>
+        <p>水情：湖北水文“三峡水库水文站”公开页面，站码 60106980，字段包括库水位、蓄水量、入库、出库。页面中的管理机构显示为“三峡梯调中心”，表格标注来源为“湖北水文”。</p>
+        <p>通航水位辅助核验：<a href="https://sxth.mot.gov.cn/sj/swxx/" target="_blank" rel="noreferrer">长江三峡通航管理局水位信息</a>。</p>
+        <p>工程参数与发电披露：<a href="https://www.ctg.com.cn/cypc/zxgg99/sxgc3/index.html" target="_blank" rel="noreferrer">中国长江电力“三峡工程”</a>、<a href="https://www.ctg.com.cn/sxjt/xwzx55/zhxw23/2026041020155014239/index.html" target="_blank" rel="noreferrer">三峡工程 2026 年一季度运行情况良好</a>、<a href="https://wap.sasac.gov.cn/n2588025/n2588124/c34357135/content.html" target="_blank" rel="noreferrer">国资委转载三峡电站累计发电量突破 1.8 万亿千瓦时</a>。</p>
+        <p>背景图：<a href="https://commons.wikimedia.org/wiki/File:Three_Gorges_Dam,_China.jpg" target="_blank" rel="noreferrer">NASA / Wikimedia Commons 三峡大坝卫星影像</a>。</p>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const STATION_URL = "https://hbwater.wetruetech.com/water/portal/wx_station_info";
+    const STATION = { stationCode: "60106980", stationType: "RR" };
+    const TOTAL_CAPACITY_MCM = 39300;
+    const INSTALLED_MW = 22500;
+    const NORMAL_LEVEL = 175;
+    const FLOOD_LIMIT = 145;
+    const TAILWATER_LEVEL = 66;
+    const EFFICIENCY = 0.90;
+    const POWER_DISCLOSURES = [
+      { date: "2026-Q1", label: "三峡电站一季度累计发电超 160 亿千瓦时", value: 160, unit: "亿kWh", source: "三峡集团", url: "https://www.ctg.com.cn/sxjt/xwzx55/zhxw23/2026041020155014239/index.html" },
+      { date: "2025-08-31", label: "三峡电站累计发电量突破 1.8 万亿千瓦时", value: 18000, unit: "亿kWh", source: "国资委/三峡集团", url: "https://wap.sasac.gov.cn/n2588025/n2588124/c34357135/content.html" },
+      { date: "2025", label: "长江电力境内六座梯级电站总发电量 3071.94 亿千瓦时", value: 3071.94, unit: "亿kWh", source: "长江电力", url: "https://www.ctg.com.cn/cypc/index/index.html" },
+      { date: "2018", label: "三峡电站年发电量 1016.2 亿千瓦时", value: 1016.2, unit: "亿kWh", source: "三峡集团", url: "https://www.ctg.com.cn/sxjt/xwzx55/ttxw15/2024081103542575668/index.html" }
+    ];
+
+    const state = {
+      range: "7d",
+      records: [],
+      allRecords: [],
+      importedPower: [],
+      loading: false,
+      sourceMode: ""
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const fmt = new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 });
+    const dateFmt = new Intl.DateTimeFormat("zh-CN", { hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit" });
+
+    function pad(n) { return String(n).padStart(2, "0"); }
+    function localHourString(date) {
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}`;
+    }
+    function addDays(date, days) {
+      const d = new Date(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    }
+    function parseDateHour(text) {
+      const m = String(text).match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2})/);
+      if (!m) return null;
+      return new Date(+m[1], +m[2] - 1, +m[3], +m[4]);
+    }
+    function cleanNumber(value) {
+      const t = String(value ?? "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, "").trim();
+      if (!t) return null;
+      const n = Number(t.replace(/,/g, ""));
+      return Number.isFinite(n) ? n : null;
+    }
+    function decodeHtml(value) {
+      const el = document.createElement("textarea");
+      el.innerHTML = value;
+      return el.value.replace(/\s+/g, " ").trim();
+    }
+    function parseHydroHtml(html) {
+      const tbody = html.match(/<tbody>([\s\S]*?)<\/tbody>/i)?.[1] || "";
+      const rows = [];
+      for (const tr of tbody.matchAll(/<tr[\s\S]*?<\/tr>/gi)) {
+        const cells = [...tr[0].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => decodeHtml(m[1].replace(/<br\s*\/?>/gi, " ")));
+        if (cells.length < 5 || !/^\d{4}-\d{2}-\d{2}/.test(cells[0])) continue;
+        const time = parseDateHour(cells[0]);
+        if (!time) continue;
+        rows.push({
+          time: localHourString(time),
+          ts: time.getTime(),
+          level: cleanNumber(cells[1]),
+          storage: cleanNumber(cells[2]),
+          inflow: cleanNumber(cells[3]),
+          outflow: cleanNumber(cells[4])
+        });
+      }
+      return rows;
+    }
+    function rangeDays(range) {
+      return range === "7d" ? 7 : range === "30d" ? 31 : 366;
+    }
+    function buildOfficialUrl(start, end) {
+      const params = new URLSearchParams({
+        startTm: localHourString(start),
+        endTm: localHourString(end),
+        stationCode: STATION.stationCode,
+        stationType: STATION.stationType
+      });
+      return `${STATION_URL}?${params.toString()}`;
+    }
+    function splitWindows(days) {
+      const end = new Date();
+      end.setMinutes(59, 59, 0);
+      const start = addDays(end, -days);
+      const windows = [];
+      let cursor = start;
+      while (cursor < end) {
+        const next = new Date(Math.min(addDays(cursor, 30).getTime(), end.getTime()));
+        windows.push([new Date(cursor), next]);
+        cursor = next;
+      }
+      return windows;
+    }
+    async function fetchTextVia(url) {
+      if (location.protocol.startsWith("http")) {
+        try {
+          const local = await fetch(`/api/raw?url=${encodeURIComponent(url)}`);
+          if (local.ok) {
+            state.sourceMode = "本地代理";
+            return await local.text();
+          }
+        } catch {}
+      }
+      try {
+        const direct = await fetch(url);
+        if (direct.ok) {
+          state.sourceMode = "官方源直连";
+          return await direct.text();
+        }
+      } catch {}
+      const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+      const proxied = await fetch(proxy);
+      if (!proxied.ok) throw new Error(`跨域代理读取失败：${proxied.status}`);
+      state.sourceMode = "公共跨域代理";
+      return await proxied.text();
+    }
+    async function fetchHydro(range) {
+      if (location.protocol.startsWith("http")) {
+        try {
+          const res = await fetch(`/api/hydro?range=${range}`);
+          if (res.ok) {
+            const json = await res.json();
+            state.sourceMode = json.sourceMode || "本地代理";
+            return json.records;
+          }
+        } catch {}
+      }
+      const windows = splitWindows(rangeDays(range));
+      const chunks = [];
+      for (const [start, end] of windows) {
+        const html = await fetchTextVia(buildOfficialUrl(start, end));
+        chunks.push(...parseHydroHtml(html));
+      }
+      return normalizeRecords(chunks, range);
+    }
+    function normalizeRecords(records, range) {
+      const cutoff = addDays(new Date(), -rangeDays(range)).getTime();
+      const map = new Map();
+      for (const row of records) {
+        if (!row.ts || row.ts < cutoff) continue;
+        map.set(row.time, row);
+      }
+      return [...map.values()].sort((a, b) => a.ts - b.ts);
+    }
+    function enrich(row) {
+      const head = row.level == null ? null : Math.max(0, row.level - TAILWATER_LEVEL);
+      const powerMw = row.outflow == null || head == null ? null : (1000 * 9.80665 * row.outflow * head * EFFICIENCY) / 1e6;
+      return {
+        ...row,
+        netFlow: row.inflow == null || row.outflow == null ? null : row.inflow - row.outflow,
+        powerMw,
+        utilization: powerMw == null ? null : powerMw / INSTALLED_MW
+      };
+    }
+    function setStatus(text) { $("status").textContent = text; }
+    function latestWithValue(records, key) {
+      for (let i = records.length - 1; i >= 0; i--) if (records[i][key] != null) return records[i];
+      return null;
+    }
+    function delta24(records) {
+      const latest = latestWithValue(records, "level");
+      if (!latest) return null;
+      const target = latest.ts - 24 * 3600 * 1000;
+      const prev = records.reduce((best, row) => {
+        if (row.level == null) return best;
+        const diff = Math.abs(row.ts - target);
+        return !best || diff < best.diff ? { row, diff } : best;
+      }, null)?.row;
+      if (!prev) return null;
+      return latest.level - prev.level;
+    }
+    function renderKpis(records) {
+      const latest = records[records.length - 1];
+      const latestIn = latestWithValue(records, "inflow");
+      const d24 = delta24(records);
+      if (!latest) return;
+      const e = enrich({ ...latest, inflow: latest.inflow ?? latestIn?.inflow });
+      $("kpiLevel").textContent = latest.level == null ? "--" : `${fmt.format(latest.level)} m`;
+      $("kpiLevelNote").textContent = `最新：${latest.time}${d24 == null ? "" : `，24h ${d24 >= 0 ? "+" : ""}${fmt.format(d24)} m`}`;
+      $("kpiFlow").textContent = `${latestIn?.inflow == null ? "--" : fmt.format(latestIn.inflow)} / ${latest.outflow == null ? "--" : fmt.format(latest.outflow)}`;
+      $("kpiFlowNote").textContent = `入库最近有效时点：${latestIn?.time || "--"}；出库最新：${latest.time}`;
+      $("kpiStorage").textContent = latest.storage == null ? "--" : `${fmt.format(latest.storage / 1000)} 亿 m³`;
+      $("kpiStorageNote").textContent = latest.storage == null ? `总库容 ${TOTAL_CAPACITY_MCM / 1000} 亿 m³` : `占总库容 ${(latest.storage / TOTAL_CAPACITY_MCM * 100).toFixed(1)}%`;
+      $("kpiPower").textContent = e.powerMw == null ? "--" : `${fmt.format(e.powerMw)} MW`;
+      $("kpiPowerNote").textContent = e.utilization == null ? "非官方发电功率" : `估算设备利用率 ${(e.utilization * 100).toFixed(1)}%，非官方发电功率`;
+    }
+    function scale(values, pad = .08) {
+      const nums = values.filter(Number.isFinite);
+      if (!nums.length) return [0, 1];
+      let min = Math.min(...nums);
+      let max = Math.max(...nums);
+      if (min === max) { min -= 1; max += 1; }
+      const d = (max - min) * pad;
+      return [min - d, max + d];
+    }
+    function setupCanvas(canvas) {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, w: rect.width, h: rect.height };
+    }
+    function drawBase(ctx, w, h, titleLeft, titleRight) {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(255,255,255,.36)";
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = "#d9e6ec";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = 28 + (h - 58) * i / 4;
+        ctx.beginPath();
+        ctx.moveTo(48, y);
+        ctx.lineTo(w - 18, y);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#667786";
+      ctx.font = "12px sans-serif";
+      ctx.fillText(titleLeft || "", 48, 16);
+      if (titleRight) {
+        const tw = ctx.measureText(titleRight).width;
+        ctx.fillText(titleRight, w - tw - 18, 16);
+      }
+    }
+    function drawLine(ctx, pts, xOf, yOf, color, width = 2.4, dashed = false, area = false) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      if (dashed) ctx.setLineDash([6, 6]);
+      let open = false;
+      const segments = [];
+      let current = [];
+      pts.forEach((p) => {
+        const x = xOf(p);
+        const y = yOf(p);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          if (current.length) segments.push(current);
+          current = [];
+          open = false;
+          return;
+        }
+        if (!open) {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          open = true;
+        } else ctx.lineTo(x, y);
+        current.push([x, y]);
+      });
+      if (current.length) segments.push(current);
+      ctx.stroke();
+      if (area && segments.length) {
+        ctx.globalAlpha = .12;
+        ctx.fillStyle = color;
+        segments.forEach((seg) => {
+          ctx.beginPath();
+          seg.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+          ctx.lineTo(seg[seg.length - 1][0], 3000);
+          ctx.lineTo(seg[0][0], 3000);
+          ctx.closePath();
+          ctx.fill();
+        });
+      }
+      ctx.restore();
+    }
+    function drawAxesLabels(ctx, records, w, h, yMin, yMax, formatter = (v) => v.toFixed(0)) {
+      ctx.fillStyle = "#657685";
+      ctx.font = "11px sans-serif";
+      for (let i = 0; i <= 4; i++) {
+        const val = yMax - (yMax - yMin) * i / 4;
+        const y = 32 + (h - 64) * i / 4;
+        ctx.fillText(formatter(val), 5, y + 4);
+      }
+      if (records.length) {
+        const first = records[0].time.slice(5);
+        const last = records[records.length - 1].time.slice(5);
+        ctx.fillText(first, 48, h - 8);
+        const tw = ctx.measureText(last).width;
+        ctx.fillText(last, w - tw - 18, h - 8);
+      }
+    }
+    function drawLevelChart(records) {
+      const canvas = $("levelChart");
+      const { ctx, w, h } = setupCanvas(canvas);
+      if (!records.length) return drawEmpty(ctx, w, h);
+      drawBase(ctx, w, h, "库水位 / m", "蓄水量 / 10^6 m³");
+      const left = 48, right = w - 18, top = 28, bottom = h - 30;
+      const xs = (p) => left + (right - left) * (p.ts - records[0].ts) / Math.max(1, records[records.length - 1].ts - records[0].ts);
+      const [lmin, lmax] = scale(records.map((d) => d.level).concat([FLOOD_LIMIT, NORMAL_LEVEL]), .03);
+      const [smin, smax] = scale(records.map((d) => d.storage), .05);
+      const yLevel = (p) => p.level == null ? NaN : bottom - (bottom - top) * (p.level - lmin) / (lmax - lmin);
+      const yStorage = (p) => p.storage == null ? NaN : bottom - (bottom - top) * (p.storage - smin) / (smax - smin);
+      drawAxesLabels(ctx, records, w, h, lmin, lmax, (v) => v.toFixed(1));
+      [NORMAL_LEVEL, FLOOD_LIMIT].forEach((level, i) => {
+        const y = bottom - (bottom - top) * (level - lmin) / (lmax - lmin);
+        ctx.strokeStyle = i ? "#cf5a4c" : "#c88a18";
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      });
+      drawLine(ctx, records, xs, yStorage, "#14b8a6", 2, false, true);
+      drawLine(ctx, records, xs, yLevel, "#0277a8", 3);
+    }
+    function drawFlowChart(records) {
+      const canvas = $("flowChart");
+      const { ctx, w, h } = setupCanvas(canvas);
+      if (!records.length) return drawEmpty(ctx, w, h);
+      drawBase(ctx, w, h, "流量 / m³/s", "");
+      const left = 48, right = w - 18, top = 28, bottom = h - 30;
+      const maxTs = records[records.length - 1].ts, minTs = records[0].ts;
+      const xs = (p) => left + (right - left) * (p.ts - minTs) / Math.max(1, maxTs - minTs);
+      const all = records.flatMap((d) => [d.inflow, d.outflow, d.inflow != null && d.outflow != null ? d.inflow - d.outflow : null]);
+      const [ymin, ymax] = scale(all, .08);
+      const y = (v) => v == null ? NaN : bottom - (bottom - top) * (v - ymin) / (ymax - ymin);
+      drawAxesLabels(ctx, records, w, h, ymin, ymax);
+      drawLine(ctx, records, xs, (p) => y(p.inflow), "#3f8f4f", 2.6, true);
+      drawLine(ctx, records, xs, (p) => y(p.outflow), "#0277a8", 2.8);
+      drawLine(ctx, records, xs, (p) => y(p.inflow != null && p.outflow != null ? p.inflow - p.outflow : null), "#cf5a4c", 2, true);
+    }
+    function byDay(records) {
+      const groups = new Map();
+      records.forEach((r) => {
+        const key = r.time.slice(0, 10);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(enrich(r));
+      });
+      return [...groups.entries()].map(([date, rows]) => ({
+        date,
+        ts: rows[0].ts,
+        outflow: avg(rows.map((r) => r.outflow)),
+        level: avg(rows.map((r) => r.level)),
+        powerMw: avg(rows.map((r) => r.powerMw)),
+        energyGwh: avg(rows.map((r) => r.powerMw)) == null ? null : avg(rows.map((r) => r.powerMw)) * 24 / 1000
+      }));
+    }
+    function avg(values) {
+      const nums = values.filter(Number.isFinite);
+      return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+    }
+    function drawDailyChart(records) {
+      const canvas = $("dailyChart");
+      const { ctx, w, h } = setupCanvas(canvas);
+      const days = byDay(records);
+      if (!days.length) return drawEmpty(ctx, w, h);
+      drawBase(ctx, w, h, "日均出库 / m³/s", "理论日发电量 / GWh");
+      const left = 48, right = w - 18, top = 28, bottom = h - 30;
+      const xs = (p) => left + (right - left) * (p.ts - days[0].ts) / Math.max(1, days[days.length - 1].ts - days[0].ts);
+      const [fmin, fmax] = scale(days.map((d) => d.outflow), .08);
+      const [emin, emax] = scale(days.map((d) => d.energyGwh), .08);
+      const yf = (p) => p.outflow == null ? NaN : bottom - (bottom - top) * (p.outflow - fmin) / (fmax - fmin);
+      const ye = (p) => p.energyGwh == null ? NaN : bottom - (bottom - top) * (p.energyGwh - emin) / (emax - emin);
+      drawAxesLabels(ctx, days.map((d) => ({ ...d, time: d.date })), w, h, fmin, fmax);
+      drawLine(ctx, days, xs, ye, "#c88a18", 2.4, false, true);
+      drawLine(ctx, days, xs, yf, "#0277a8", 2.8);
+    }
+    function drawYearChart(records) {
+      const canvas = $("yearChart");
+      const { ctx, w, h } = setupCanvas(canvas);
+      const days = byDay(records);
+      if (!days.length) return drawEmpty(ctx, w, h);
+      const months = new Map();
+      days.forEach((d) => {
+        const key = d.date.slice(0, 7);
+        if (!months.has(key)) months.set(key, []);
+        if (Number.isFinite(d.level)) months.get(key).push(d.level);
+      });
+      const data = [...months.entries()].map(([month, vals], idx) => ({
+        month, idx, avg: avg(vals), min: Math.min(...vals), max: Math.max(...vals)
+      })).filter((d) => Number.isFinite(d.avg));
+      drawBase(ctx, w, h, "水位 / m", "");
+      const left = 48, right = w - 18, top = 28, bottom = h - 30;
+      const [ymin, ymax] = scale(data.flatMap((d) => [d.min, d.max]), .08);
+      const x = (i) => data.length === 1 ? (left + right) / 2 : left + (right - left) * i / (data.length - 1);
+      const y = (v) => bottom - (bottom - top) * (v - ymin) / (ymax - ymin);
+      drawAxesLabels(ctx, data.map((d) => ({ ts: d.idx, time: d.month })), w, h, ymin, ymax, (v) => v.toFixed(1));
+      ctx.strokeStyle = "#14b8a6";
+      ctx.lineWidth = 6;
+      ctx.lineCap = "round";
+      data.forEach((d, i) => {
+        ctx.beginPath();
+        ctx.moveTo(x(i), y(d.min));
+        ctx.lineTo(x(i), y(d.max));
+        ctx.stroke();
+      });
+      drawLine(ctx, data, (p) => x(p.idx), (p) => y(p.avg), "#0277a8", 3);
+    }
+    function drawPowerChart(records) {
+      const canvas = $("powerChart");
+      const { ctx, w, h } = setupCanvas(canvas);
+      drawBase(ctx, w, h, "官方披露发电量 / 亿kWh", "估算利用率 / %");
+      const left = 58, right = w - 24, top = 28, bottom = h - 30;
+      ctx.fillStyle = "#0277a8";
+      const official = POWER_DISCLOSURES.concat(state.importedPower);
+      const vals = official.map((d) => Number(d.value)).filter(Number.isFinite);
+      const maxVal = Math.max(1, ...vals);
+      const barW = Math.max(18, Math.min(72, (right - left) / Math.max(1, official.length * 1.8)));
+      official.forEach((d, i) => {
+        const x = left + i * ((right - left) / Math.max(1, official.length));
+        const hbar = (bottom - top) * Number(d.value) / maxVal;
+        ctx.globalAlpha = d.imported ? .78 : .95;
+        ctx.fillStyle = d.imported ? "#3f8f4f" : "#0277a8";
+        ctx.fillRect(x, bottom - hbar, barW, hbar);
+        ctx.globalAlpha = 1;
+        ctx.save();
+        ctx.translate(x - 4, bottom + 10);
+        ctx.rotate(-Math.PI / 5);
+        ctx.fillStyle = "#657685";
+        ctx.font = "11px sans-serif";
+        ctx.fillText(d.date, 0, 0);
+        ctx.restore();
+      });
+      const days = byDay(records);
+      if (days.length) {
+        const util = days.map((d) => ({ ...d, util: d.powerMw == null ? null : d.powerMw / INSTALLED_MW * 100 }));
+        const maxU = Math.max(100, ...util.map((d) => d.util || 0));
+        const xs = (p) => left + (right - left) * (p.ts - days[0].ts) / Math.max(1, days[days.length - 1].ts - days[0].ts);
+        const yu = (p) => p.util == null ? NaN : bottom - (bottom - top) * p.util / maxU;
+        drawLine(ctx, util, xs, yu, "#c88a18", 2.6, false);
+      }
+    }
+    function drawEmpty(ctx, w, h) {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#657685";
+      ctx.font = "14px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("暂无可绘制数据", w / 2, h / 2);
+      ctx.textAlign = "left";
+    }
+    function renderTable(records) {
+      $("rowCount").textContent = `${records.length} 条`;
+      $("dataRows").innerHTML = records.slice().reverse().map((row) => {
+        const e = enrich(row);
+        return `<tr>
+          <td>${row.time}</td>
+          <td>${cell(row.level, 2)}</td>
+          <td>${cell(row.storage, 1)}</td>
+          <td>${cell(row.inflow, 0)}</td>
+          <td>${cell(row.outflow, 0)}</td>
+          <td>${cell(e.netFlow, 0, true)}</td>
+          <td>${cell(e.powerMw, 0)}</td>
+          <td>${e.utilization == null ? "" : (e.utilization * 100).toFixed(1) + "%"}</td>
+        </tr>`;
+      }).join("");
+    }
+    function cell(value, digits = 0, sign = false) {
+      if (!Number.isFinite(value)) return "";
+      const text = Number(value).toLocaleString("zh-CN", { maximumFractionDigits: digits, minimumFractionDigits: digits });
+      return sign && value > 0 ? `+${text}` : text;
+    }
+    function renderAll() {
+      const records = state.records;
+      renderKpis(records);
+      drawLevelChart(records);
+      drawFlowChart(records);
+      drawDailyChart(records);
+      drawYearChart(state.allRecords.length ? state.allRecords : records);
+      drawPowerChart(records);
+      renderTable(records);
+    }
+    async function load(range = state.range) {
+      state.loading = true;
+      $("refresh").disabled = true;
+      setStatus("正在读取官方水情页面，请稍候...");
+      try {
+        const records = await fetchHydro(range);
+        state.records = records.map(enrich);
+        if (range === "1y") state.allRecords = state.records;
+        renderAll();
+        const latest = state.records[state.records.length - 1]?.time || "--";
+        setStatus(`已更新：${latest}。数据源：${state.sourceMode}；记录 ${state.records.length} 条。`);
+        if (range !== "1y" && !state.allRecords.length) {
+          fetchHydro("1y")
+            .then((yearRecords) => {
+              state.allRecords = yearRecords.map(enrich);
+              drawYearChart(state.allRecords);
+              const yearLatest = state.allRecords[state.allRecords.length - 1]?.time || latest;
+              setStatus(`已更新：${latest}。近一年汇总已补齐到 ${yearLatest}；当前表格 ${state.records.length} 条。`);
+            })
+            .catch(() => {
+              state.allRecords = state.records;
+              drawYearChart(state.allRecords);
+            });
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus(`读取失败：${err.message || err}。请用本地服务器打开，或稍后重试官方源。`);
+      } finally {
+        state.loading = false;
+        $("refresh").disabled = false;
+      }
+    }
+    function downloadCsv() {
+      const header = ["time", "level_m", "storage_10^6_m3", "inflow_m3s", "outflow_m3s", "netflow_m3s", "estimated_power_mw", "estimated_utilization"];
+      const rows = state.records.map((r) => {
+        const e = enrich(r);
+        return [r.time, r.level, r.storage, r.inflow, r.outflow, e.netFlow, e.powerMw, e.utilization].map((v) => v == null ? "" : v).join(",");
+      });
+      const blob = new Blob([[header.join(","), ...rows].join("\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `three-gorges-${state.range}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    function handlePowerCsv(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const lines = String(reader.result).split(/\r?\n/).filter(Boolean);
+        const [head, ...body] = lines;
+        const cols = head.split(",").map((s) => s.trim().toLowerCase());
+        const dateIdx = cols.indexOf("date");
+        const valueIdx = cols.findIndex((c) => ["gwh", "kwh_billion", "亿kwh", "value"].includes(c));
+        if (dateIdx < 0 || valueIdx < 0) {
+          setStatus("电量 CSV 需要包含 date 和 value/gwh/亿kwh 列。");
+          return;
+        }
+        state.importedPower = body.map((line) => {
+          const parts = line.split(",");
+          return { date: parts[dateIdx], value: Number(parts[valueIdx]), label: "导入官方电量", unit: "用户文件", imported: true };
+        }).filter((d) => d.date && Number.isFinite(d.value));
+        drawPowerChart(state.records);
+        setStatus(`已导入 ${state.importedPower.length} 条电量数据。`);
+      };
+      reader.readAsText(file, "utf-8");
+    }
+
+    document.querySelectorAll(".segmented button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".segmented button").forEach((b) => b.classList.remove("active"));
+        button.classList.add("active");
+        state.range = button.dataset.range;
+        load(state.range);
+      });
+    });
+    $("refresh").addEventListener("click", () => load(state.range));
+    $("downloadCsv").addEventListener("click", downloadCsv);
+    $("powerCsv").addEventListener("change", (event) => {
+      const file = event.target.files?.[0];
+      if (file) handlePowerCsv(file);
+    });
+    window.addEventListener("resize", () => renderAll());
+    load("7d");
+  </script>
+</body>
+</html>
