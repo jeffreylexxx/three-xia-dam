@@ -455,6 +455,9 @@
   <script>
     const STATION_URL = "https://hbwater.wetruetech.com/water/portal/wx_station_info";
     const STATION = { stationCode: "60106980", stationType: "RR" };
+    const apiParam = new URLSearchParams(location.search).get("api");
+    if (apiParam) localStorage.setItem("THREE_GORGES_API_BASE", apiParam.replace(/\/$/, ""));
+    const API_BASE = (apiParam || localStorage.getItem("THREE_GORGES_API_BASE") || "").replace(/\/$/, "");
     const TOTAL_CAPACITY_MCM = 39300;
     const INSTALLED_MW = 22500;
     const NORMAL_LEVEL = 175;
@@ -551,11 +554,11 @@
       return windows;
     }
     async function fetchTextVia(url) {
-      if (location.protocol.startsWith("http")) {
+      if (API_BASE || location.protocol.startsWith("http")) {
         try {
-          const local = await fetch(`/api/raw?url=${encodeURIComponent(url)}`);
+          const local = await fetch(`${API_BASE}/api/raw?url=${encodeURIComponent(url)}`);
           if (local.ok) {
-            state.sourceMode = "本地代理";
+            state.sourceMode = API_BASE ? "在线代理" : "本地代理";
             return await local.text();
           }
         } catch {}
@@ -574,12 +577,12 @@
       return await proxied.text();
     }
     async function fetchHydro(range) {
-      if (location.protocol.startsWith("http")) {
+      if (API_BASE || location.protocol.startsWith("http")) {
         try {
-          const res = await fetch(`/api/hydro?range=${range}`);
+          const res = await fetch(`${API_BASE}/api/hydro?range=${range}`);
           if (res.ok) {
             const json = await res.json();
-            state.sourceMode = json.sourceMode || "本地代理";
+            state.sourceMode = json.sourceMode || (API_BASE ? "在线代理" : "本地代理");
             return json.records;
           }
         } catch {}
