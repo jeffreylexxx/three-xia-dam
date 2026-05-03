@@ -364,9 +364,12 @@
         <canvas id="levelChart"></canvas>
         <div class="legend">
           <span style="color:var(--river)"><i class="dot"></i>库水位 m</span>
-          <span style="color:var(--cyan)"><i class="dot"></i>蓄水量 10^6 m³</span>
+          <span style="color:var(--cyan)"><i class="dot"></i>蓄水量 亿 m³</span>
           <span style="color:var(--gold)"><i class="dot"></i>175 m 正常蓄水位</span>
-          <span style="color:var(--red)"><i class="dot"></i>145 m 汛限参考</span>
+          <span style="color:var(--red)"><i class="dot"></i>145 m 汛限水位</span>
+        </div>
+        <div class="callout" style="margin-top:12px;">
+          三峡水库正常蓄水位 175 m 高于汛限水位 145 m 是符合防洪调度逻辑的：汛期需要把水库水位降到较低限制水位附近，以预留防洪库容；非汛期再逐步蓄至正常蓄水位。
         </div>
       </article>
 
@@ -457,7 +460,8 @@
     const STATION = { stationCode: "60106980", stationType: "RR" };
     const apiParam = new URLSearchParams(location.search).get("api");
     if (apiParam) localStorage.setItem("THREE_GORGES_API_BASE", apiParam.replace(/\/$/, ""));
-    const API_BASE = (apiParam || localStorage.getItem("THREE_GORGES_API_BASE") || "").replace(/\/$/, "");
+    const isLocalHost = ["127.0.0.1", "localhost", "::1"].includes(location.hostname);
+    const API_BASE = (apiParam || (isLocalHost ? "" : localStorage.getItem("THREE_GORGES_API_BASE")) || "").replace(/\/$/, "");
     const TOTAL_CAPACITY_MCM = 39300;
     const INSTALLED_MW = 22500;
     const NORMAL_LEVEL = 175;
@@ -664,25 +668,29 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       return { ctx, w: rect.width, h: rect.height };
     }
-    function drawBase(ctx, w, h, titleLeft, titleRight) {
+    function drawBase(ctx, w, h, titleLeft, titleRight, layout = {}) {
+      const left = layout.left ?? 48;
+      const right = layout.right ?? 18;
+      const top = layout.top ?? 28;
+      const bottom = layout.bottom ?? 54;
       ctx.clearRect(0, 0, w, h);
       ctx.fillStyle = "rgba(255,255,255,.36)";
       ctx.fillRect(0, 0, w, h);
       ctx.strokeStyle = "#d9e6ec";
       ctx.lineWidth = 1;
       for (let i = 0; i <= 4; i++) {
-        const y = 28 + (h - 58) * i / 4;
+        const y = top + (h - top - bottom) * i / 4;
         ctx.beginPath();
-        ctx.moveTo(48, y);
-        ctx.lineTo(w - 18, y);
+        ctx.moveTo(left, y);
+        ctx.lineTo(w - right, y);
         ctx.stroke();
       }
       ctx.fillStyle = "#667786";
       ctx.font = "12px sans-serif";
-      ctx.fillText(titleLeft || "", 48, 16);
+      ctx.fillText(titleLeft || "", left, 16);
       if (titleRight) {
         const tw = ctx.measureText(titleRight).width;
-        ctx.fillText(titleRight, w - tw - 18, 16);
+        ctx.fillText(titleRight, w - tw - right, 16);
       }
     }
     function drawLine(ctx, pts, xOf, yOf, color, width = 2.4, dashed = false, area = false) {
@@ -727,34 +735,126 @@
       }
       ctx.restore();
     }
-    function drawAxesLabels(ctx, records, w, h, yMin, yMax, formatter = (v) => v.toFixed(0)) {
+    function drawConnectedLine(ctx, pts, xOf, yOf, color, width = 2.4, dashed = false, markers = true) {
+      const valid = pts.map((p) => ({ p, x: xOf(p), y: yOf(p) })).filter((d) => Number.isFinite(d.x) && Number.isFinite(d.y));
+      if (!valid.length) return;
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      if (dashed) ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      valid.forEach((d, i) => i ? ctx.lineTo(d.x, d.y) : ctx.moveTo(d.x, d.y));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (markers) {
+        ctx.fillStyle = color;
+        valid.forEach((d) => {
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, 3.2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+      ctx.restore();
+    }
+    function drawYLabels(ctx, x, top, bottom, yMin, yMax, formatter = (v) => v.toFixed(0), align = "right") {
       ctx.fillStyle = "#657685";
       ctx.font = "11px sans-serif";
+      ctx.textAlign = align;
       for (let i = 0; i <= 4; i++) {
         const val = yMax - (yMax - yMin) * i / 4;
-        const y = 32 + (h - 64) * i / 4;
-        ctx.fillText(formatter(val), 5, y + 4);
+        const y = top + (bottom - top) * i / 4;
+        ctx.fillText(formatter(val), x, y + 4);
       }
+      ctx.textAlign = "left";
+    }
+    function drawTimeTicks(ctx, ticks, xOf, h, options = {}) {
+      const bottom = options.bottom ?? 54;
+      const rotate = options.rotate ?? true;
+      const minGap = options.minGap ?? 0;
+      let lastX = -Infinity;
+      ctx.save();
+      ctx.strokeStyle = "#c9d9df";
+      ctx.fillStyle = "#657685";
+      ctx.font = options.font || "10px sans-serif";
+      ticks.forEach((tick) => {
+        const x = xOf(tick);
+        if (!Number.isFinite(x) || x - lastX < minGap) return;
+        lastX = x;
+        ctx.beginPath();
+        ctx.moveTo(x, h - bottom + 4);
+        ctx.lineTo(x, h - bottom + 9);
+        ctx.stroke();
+        ctx.save();
+        if (rotate) {
+          ctx.translate(x - 2, h - 12);
+          ctx.rotate(-Math.PI / 4);
+          ctx.textAlign = "right";
+          ctx.fillText(tick.label, 0, 0);
+        } else {
+          ctx.textAlign = "center";
+          ctx.fillText(tick.label, x, h - 10);
+        }
+        ctx.restore();
+      });
+      ctx.restore();
+    }
+    function dayTicks(records) {
+      const seen = new Set();
+      return records.reduce((ticks, row) => {
+        const date = row.time.slice(0, 10);
+        if (!seen.has(date)) {
+          seen.add(date);
+          ticks.push({ ...row, label: date.slice(5).replace("-", "/") });
+        }
+        return ticks;
+      }, []);
+    }
+    function timelineTicks(records) {
+      if (state.range !== "1y") return dayTicks(records);
+      const seen = new Set();
+      return records.reduce((ticks, row) => {
+        const month = row.time.slice(0, 7);
+        if (!seen.has(month)) {
+          seen.add(month);
+          ticks.push({ ...row, label: `${Number(month.slice(5))}月` });
+        }
+        return ticks;
+      }, []);
+    }
+    function monthTicksFromData(data) {
+      return data.map((row) => ({ ...row, label: `${Number(row.month.slice(5))}月` }));
+    }
+    function drawAxesLabels(ctx, records, w, h, yMin, yMax, formatter = (v) => v.toFixed(0), options = {}) {
+      const left = options.left ?? 48;
+      const top = options.top ?? 28;
+      const bottomMargin = options.bottom ?? 54;
+      const bottom = h - bottomMargin;
+      drawYLabels(ctx, left - 8, top, bottom, yMin, yMax, formatter, "right");
       if (records.length) {
-        const first = records[0].time.slice(5);
-        const last = records[records.length - 1].time.slice(5);
-        ctx.fillText(first, 48, h - 8);
-        const tw = ctx.measureText(last).width;
-        ctx.fillText(last, w - tw - 18, h - 8);
+        const right = w - (options.right ?? 18);
+        const firstTs = records[0].ts ?? records[0].idx ?? 0;
+        const lastTs = records[records.length - 1].ts ?? records[records.length - 1].idx ?? firstTs + 1;
+        const xOf = (p) => left + (right - left) * ((p.ts ?? p.idx ?? firstTs) - firstTs) / Math.max(1, lastTs - firstTs);
+        const ticks = options.ticks || timelineTicks(records);
+        drawTimeTicks(ctx, ticks, xOf, h, { bottom: bottomMargin, rotate: options.rotate ?? true, minGap: options.minGap ?? 0 });
       }
     }
     function drawLevelChart(records) {
       const canvas = $("levelChart");
       const { ctx, w, h } = setupCanvas(canvas);
       if (!records.length) return drawEmpty(ctx, w, h);
-      drawBase(ctx, w, h, "库水位 / m", "蓄水量 / 10^6 m³");
-      const left = 48, right = w - 18, top = 28, bottom = h - 30;
+      const layout = { left: 52, right: 54, top: 28, bottom: 62 };
+      drawBase(ctx, w, h, "库水位 / m", "蓄水量 / 亿 m³", layout);
+      const left = layout.left, right = w - layout.right, top = layout.top, bottom = h - layout.bottom;
       const xs = (p) => left + (right - left) * (p.ts - records[0].ts) / Math.max(1, records[records.length - 1].ts - records[0].ts);
       const [lmin, lmax] = scale(records.map((d) => d.level).concat([FLOOD_LIMIT, NORMAL_LEVEL]), .03);
       const [smin, smax] = scale(records.map((d) => d.storage), .05);
       const yLevel = (p) => p.level == null ? NaN : bottom - (bottom - top) * (p.level - lmin) / (lmax - lmin);
       const yStorage = (p) => p.storage == null ? NaN : bottom - (bottom - top) * (p.storage - smin) / (smax - smin);
-      drawAxesLabels(ctx, records, w, h, lmin, lmax, (v) => v.toFixed(1));
+      drawAxesLabels(ctx, records, w, h, lmin, lmax, (v) => v.toFixed(1), layout);
+      drawYLabels(ctx, w - 8, top, bottom, smin, smax, (v) => (v / 1000).toFixed(1), "right");
       [NORMAL_LEVEL, FLOOD_LIMIT].forEach((level, i) => {
         const y = bottom - (bottom - top) * (level - lmin) / (lmax - lmin);
         ctx.strokeStyle = i ? "#cf5a4c" : "#c88a18";
@@ -772,17 +872,18 @@
       const canvas = $("flowChart");
       const { ctx, w, h } = setupCanvas(canvas);
       if (!records.length) return drawEmpty(ctx, w, h);
-      drawBase(ctx, w, h, "流量 / m³/s", "");
-      const left = 48, right = w - 18, top = 28, bottom = h - 30;
+      const layout = { left: 54, right: 18, top: 28, bottom: 62 };
+      drawBase(ctx, w, h, "流量 / m³/s", "", layout);
+      const left = layout.left, right = w - layout.right, top = layout.top, bottom = h - layout.bottom;
       const maxTs = records[records.length - 1].ts, minTs = records[0].ts;
       const xs = (p) => left + (right - left) * (p.ts - minTs) / Math.max(1, maxTs - minTs);
       const all = records.flatMap((d) => [d.inflow, d.outflow, d.inflow != null && d.outflow != null ? d.inflow - d.outflow : null]);
       const [ymin, ymax] = scale(all, .08);
       const y = (v) => v == null ? NaN : bottom - (bottom - top) * (v - ymin) / (ymax - ymin);
-      drawAxesLabels(ctx, records, w, h, ymin, ymax);
-      drawLine(ctx, records, xs, (p) => y(p.inflow), "#3f8f4f", 2.6, true);
-      drawLine(ctx, records, xs, (p) => y(p.outflow), "#0277a8", 2.8);
-      drawLine(ctx, records, xs, (p) => y(p.inflow != null && p.outflow != null ? p.inflow - p.outflow : null), "#cf5a4c", 2, true);
+      drawAxesLabels(ctx, records, w, h, ymin, ymax, (v) => v.toFixed(0), layout);
+      drawConnectedLine(ctx, records, xs, (p) => y(p.inflow), "#3f8f4f", 2.8, true);
+      drawLine(ctx, records, xs, (p) => y(p.outflow), "#0277a8", 3);
+      drawConnectedLine(ctx, records, xs, (p) => y(p.inflow != null && p.outflow != null ? p.inflow - p.outflow : null), "#cf5a4c", 2.4, true);
     }
     function byDay(records) {
       const groups = new Map();
@@ -809,14 +910,16 @@
       const { ctx, w, h } = setupCanvas(canvas);
       const days = byDay(records);
       if (!days.length) return drawEmpty(ctx, w, h);
-      drawBase(ctx, w, h, "日均出库 / m³/s", "理论日发电量 / GWh");
-      const left = 48, right = w - 18, top = 28, bottom = h - 30;
+      const layout = { left: 54, right: 48, top: 28, bottom: 62 };
+      drawBase(ctx, w, h, "日均出库 / m³/s", "理论日发电量 / GWh", layout);
+      const left = layout.left, right = w - layout.right, top = layout.top, bottom = h - layout.bottom;
       const xs = (p) => left + (right - left) * (p.ts - days[0].ts) / Math.max(1, days[days.length - 1].ts - days[0].ts);
       const [fmin, fmax] = scale(days.map((d) => d.outflow), .08);
       const [emin, emax] = scale(days.map((d) => d.energyGwh), .08);
       const yf = (p) => p.outflow == null ? NaN : bottom - (bottom - top) * (p.outflow - fmin) / (fmax - fmin);
       const ye = (p) => p.energyGwh == null ? NaN : bottom - (bottom - top) * (p.energyGwh - emin) / (emax - emin);
-      drawAxesLabels(ctx, days.map((d) => ({ ...d, time: d.date })), w, h, fmin, fmax);
+      drawAxesLabels(ctx, days.map((d) => ({ ...d, time: d.date })), w, h, fmin, fmax, (v) => v.toFixed(0), { ...layout, ticks: timelineTicks(days.map((d) => ({ ...d, time: d.date }))) });
+      drawYLabels(ctx, w - 8, top, bottom, emin, emax, (v) => v.toFixed(0), "right");
       drawLine(ctx, days, xs, ye, "#c88a18", 2.4, false, true);
       drawLine(ctx, days, xs, yf, "#0277a8", 2.8);
     }
@@ -834,12 +937,13 @@
       const data = [...months.entries()].map(([month, vals], idx) => ({
         month, idx, avg: avg(vals), min: Math.min(...vals), max: Math.max(...vals)
       })).filter((d) => Number.isFinite(d.avg));
-      drawBase(ctx, w, h, "水位 / m", "");
-      const left = 48, right = w - 18, top = 28, bottom = h - 30;
+      const layout = { left: 52, right: 18, top: 28, bottom: 58 };
+      drawBase(ctx, w, h, "水位 / m", "", layout);
+      const left = layout.left, right = w - layout.right, top = layout.top, bottom = h - layout.bottom;
       const [ymin, ymax] = scale(data.flatMap((d) => [d.min, d.max]), .08);
       const x = (i) => data.length === 1 ? (left + right) / 2 : left + (right - left) * i / (data.length - 1);
       const y = (v) => bottom - (bottom - top) * (v - ymin) / (ymax - ymin);
-      drawAxesLabels(ctx, data.map((d) => ({ ts: d.idx, time: d.month })), w, h, ymin, ymax, (v) => v.toFixed(1));
+      drawAxesLabels(ctx, data.map((d) => ({ ts: d.idx, idx: d.idx, time: d.month })), w, h, ymin, ymax, (v) => v.toFixed(1), { ...layout, ticks: monthTicksFromData(data), rotate: false });
       ctx.strokeStyle = "#14b8a6";
       ctx.lineWidth = 6;
       ctx.lineCap = "round";
@@ -854,12 +958,14 @@
     function drawPowerChart(records) {
       const canvas = $("powerChart");
       const { ctx, w, h } = setupCanvas(canvas);
-      drawBase(ctx, w, h, "官方披露发电量 / 亿kWh", "估算利用率 / %");
-      const left = 58, right = w - 24, top = 28, bottom = h - 30;
+      const layout = { left: 62, right: 52, top: 28, bottom: 62 };
+      drawBase(ctx, w, h, "官方披露发电量 / 亿kWh", "估算利用率 / %", layout);
+      const left = layout.left, right = w - layout.right, top = layout.top, bottom = h - layout.bottom;
       ctx.fillStyle = "#0277a8";
       const official = POWER_DISCLOSURES.concat(state.importedPower);
       const vals = official.map((d) => Number(d.value)).filter(Number.isFinite);
       const maxVal = Math.max(1, ...vals);
+      drawYLabels(ctx, left - 8, top, bottom, 0, maxVal, (v) => fmt.format(v), "right");
       const barW = Math.max(18, Math.min(72, (right - left) / Math.max(1, official.length * 1.8)));
       official.forEach((d, i) => {
         const x = left + i * ((right - left) / Math.max(1, official.length));
@@ -882,6 +988,8 @@
         const maxU = Math.max(100, ...util.map((d) => d.util || 0));
         const xs = (p) => left + (right - left) * (p.ts - days[0].ts) / Math.max(1, days[days.length - 1].ts - days[0].ts);
         const yu = (p) => p.util == null ? NaN : bottom - (bottom - top) * p.util / maxU;
+        drawYLabels(ctx, w - 8, top, bottom, 0, maxU, (v) => `${v.toFixed(0)}%`, "right");
+        drawTimeTicks(ctx, timelineTicks(days.map((d) => ({ ...d, time: d.date }))), xs, h, { bottom: layout.bottom, rotate: true });
         drawLine(ctx, util, xs, yu, "#c88a18", 2.6, false);
       }
     }
