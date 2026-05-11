@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-05-11T06:36:19.868Z",
+  "sourceMode": "GitHub Actions 每日快照 -> 湖北水文公开页面",
+  "ranges": {
+    "7d": "data/hydro-7d.json",
+    "30d": "data/hydro-30d.json",
+    "1y": "data/hydro-1y.json",
+    "4y": "data/hydro-4y.json"
+  }
+}
