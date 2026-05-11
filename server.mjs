@@ -26,7 +26,7 @@ function addDays(date, days) {
 }
 
 function rangeDays(range) {
-  return range === "7d" ? 7 : range === "30d" ? 31 : 366;
+  return range === "7d" ? 7 : range === "30d" ? 31 : range === "4y" ? 366 * 4 : 366;
 }
 
 function splitWindows(days) {

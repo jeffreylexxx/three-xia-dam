@@ -1,4 +1,7 @@
-const STATION_URL = "https://hbwater.wetruetech.com/water/portal/wx_station_info";
+// Cloudflare Workers validates upstream TLS strictly. The Hubei Water HTTPS
+// endpoint currently returns 526 from Workers, while the official HTTP endpoint
+// is available and serves the same public station page.
+const STATION_URL = "http://hbwater.wetruetech.com/water/portal/wx_station_info";
 const STATION = { stationCode: "60106980", stationType: "RR" };
 
 function pad(n) {
@@ -16,7 +19,7 @@ function addDays(date, days) {
 }
 
 function rangeDays(range) {
-  return range === "7d" ? 7 : range === "30d" ? 31 : 366;
+  return range === "7d" ? 7 : range === "30d" ? 31 : range === "4y" ? 366 * 4 : 366;
 }
 
 function splitWindows(days) {
@@ -144,7 +147,7 @@ export default {
       }
       if (url.pathname === "/api/raw") {
         const target = url.searchParams.get("url");
-        if (!target || !target.startsWith("https://hbwater.wetruetech.com/")) {
+        if (!target || !/^https?:\/\/hbwater\.wetruetech\.com\//.test(target)) {
           return cors("Only the configured Hubei Water source is allowed.", 400);
         }
         const html = await fetchOfficial(target);
