@@ -9,7 +9,10 @@ const rootDir = path.resolve(__dirname, "..");
 const dataDir = path.join(rootDir, "data");
 const execFileAsync = promisify(execFile);
 
-const STATION_URL = "https://hbwater.wetruetech.com/water/portal/wx_station_info";
+// The upstream server's HTTPS endpoint requires unsafe TLS renegotiation, which
+// OpenSSL 3 correctly rejects on GitHub's Ubuntu runners. Its public HTTP
+// endpoint serves the same read-only water table without redirecting to HTTPS.
+const STATION_URL = "http://hbwater.wetruetech.com/water/portal/wx_station_info";
 const STATION = { stationCode: "60106980", stationType: "RR" };
 const SOURCE_MODE = "GitHub Actions 每日快照 → 湖北水文公开页面";
 const FOUR_YEARS_IN_DAYS = 366 * 4;
