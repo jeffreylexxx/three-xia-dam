@@ -15,6 +15,7 @@
       --cyan: #14b8a6;
       --green: #3f8f4f;
       --gold: #c88a18;
+      --earth: #9a6435;
       --red: #cf5a4c;
       --bg: #eef6f7;
       --shadow: 0 18px 50px rgba(23, 54, 72, .12);
@@ -410,18 +411,33 @@
         </div>
       </article>
 
-      <article class="panel chart-card wide">
+      <article class="panel chart-card">
         <div class="card-head">
           <h2 id="powerTitle">发电量与设备利用率</h2>
           <span id="powerSubtitle">随当前时间范围聚合</span>
         </div>
         <div class="callout">
-          三峡集团/长江电力公开网页目前披露的是季度、年度、累计与调峰新闻口径，未找到小时级实时发电量公开接口。下图使用真实水情估算可用水能功率，并按当前选择范围聚合：7 天按日、1 个月按自然月、1 年标签下按近四年自然年；仅用于趋势观察，不等同官方发电量。
+          7 天按日使用真实水情估算；1 个月标签读取近一年快照并展示最近 6 个自然月；1 年标签展示近 4 年，其中 2023—2025 年采用中国长江电力官方发电量，2026 年为截至当前的水情估算。估算部分仅用于趋势观察。
         </div>
         <canvas id="powerChart" style="margin-top:14px;"></canvas>
         <div class="legend">
           <span style="color:var(--river)"><i class="dot"></i><span id="powerBarLabel">估算发电量</span></span>
           <span style="color:var(--gold)"><i class="dot"></i>平均设备利用率</span>
+        </div>
+      </article>
+
+      <article class="panel chart-card">
+        <div class="card-head">
+          <h2 id="sedimentTitle">近7天出库输沙量估算</h2>
+          <span id="sedimentSubtitle">按日汇总，非官方逐日实测</span>
+        </div>
+        <div class="callout">
+          未找到可持续获取的三峡逐日官方泥沙接口。本图以公开的年度出库沙量和排沙比量级校准，根据黄陵庙出库断面的真实出库流量估算悬移质输沙量；只适合观察趋势，不代表官方泥沙监测值。
+        </div>
+        <canvas id="sedimentChart" style="margin-top:14px;"></canvas>
+        <div class="legend">
+          <span style="color:var(--earth)"><i class="dot"></i><span id="sedimentBarLabel">日估算出库输沙量</span></span>
+          <span style="color:var(--river)"><i class="dot"></i>同期平均出库流量</span>
         </div>
       </article>
 
@@ -454,6 +470,7 @@
         <p>水情：湖北水文“三峡水库水文站”公开页面，站码 60106980，字段包括库水位、蓄水量、入库、出库。页面中的管理机构显示为“三峡梯调中心”，表格标注来源为“湖北水文”。</p>
         <p>通航水位辅助核验：<a href="https://sxth.mot.gov.cn/sj/swxx/" target="_blank" rel="noreferrer">长江三峡通航管理局水位信息</a>。</p>
         <p>工程参数与发电披露：<a href="https://www.ctg.com.cn/cypc/zxgg99/sxgc3/index.html" target="_blank" rel="noreferrer">中国长江电力“三峡工程”</a>、<a href="https://www.ctg.com.cn/sxjt/xwzx55/zhxw23/2026041020155014239/index.html" target="_blank" rel="noreferrer">三峡工程 2026 年一季度运行情况良好</a>、<a href="https://wap.sasac.gov.cn/n2588025/n2588124/c34357135/content.html" target="_blank" rel="noreferrer">国资委转载三峡电站累计发电量突破 1.8 万亿千瓦时</a>。</p>
+        <p>泥沙口径：<a href="https://finance-app.people.cn/n1/2026/0527/c1004-40728426.html" target="_blank" rel="noreferrer">2025 年《中国河流泥沙公报》发布信息</a>披露三峡水库淤积量约 5200 万吨、排沙比约 5.6%；<a href="https://www.jlakes.org/html/2023/2/20230222.html" target="_blank" rel="noreferrer">《近20年来三峡水库泥沙淤积及其对库区的影响》</a>说明出库沙量采用黄陵庙站悬移质泥沙资料。页面逐日/月度数据为依据真实出库流量进行的量级估算，并非官方逐日实测。</p>
         <p>背景图：<a href="https://commons.wikimedia.org/wiki/File:Three_Gorges_Dam,_China.jpg" target="_blank" rel="noreferrer">NASA / Wikimedia Commons 三峡大坝卫星影像</a>。</p>
       </article>
     </section>
@@ -472,6 +489,13 @@
     const FLOOD_LIMIT = 145;
     const TAILWATER_LEVEL = 66;
     const EFFICIENCY = 0.90;
+    const SEDIMENT_BASE_CONCENTRATION_KG_M3 = 0.0047;
+    const SEDIMENT_REFERENCE_FLOW_M3S = 12565;
+    const OFFICIAL_ANNUAL_POWER = [
+      { year: "2023", energyGwh: 80271, source: "中国长江电力2023年年报" },
+      { year: "2024", energyGwh: 82911, source: "中国长江电力2024年年报" },
+      { year: "2025", energyGwh: 95715, source: "中国长江电力2025年发电量公告" }
+    ];
     const POWER_DISCLOSURES = [
       { date: "2026-Q1", label: "三峡电站一季度累计发电超 160 亿千瓦时", value: 160, unit: "亿kWh", source: "三峡集团", url: "https://www.ctg.com.cn/sxjt/xwzx55/zhxw23/2026041020155014239/index.html" },
       { date: "2025-08-31", label: "三峡电站累计发电量突破 1.8 万亿千瓦时", value: 18000, unit: "亿kWh", source: "国资委/三峡集团", url: "https://wap.sasac.gov.cn/n2588025/n2588124/c34357135/content.html" },
@@ -596,11 +620,9 @@
       return json.records;
     }
     async function fetchHydro(range) {
-      if (!isLocalHost) {
-        try {
-          return await fetchSnapshot(range);
-        } catch {}
-      }
+      try {
+        return await fetchSnapshot(range);
+      } catch {}
       if (API_BASE || location.protocol.startsWith("http")) {
         try {
           const res = await fetch(`${API_BASE}/api/hydro?range=${range}`);
@@ -631,11 +653,20 @@
     function enrich(row) {
       const head = row.level == null ? null : Math.max(0, row.level - TAILWATER_LEVEL);
       const powerMw = row.outflow == null || head == null ? null : (1000 * 9.80665 * row.outflow * head * EFFICIENCY) / 1e6;
+      const sedimentConcentration = row.outflow == null
+        ? null
+        : SEDIMENT_BASE_CONCENTRATION_KG_M3
+          * Math.pow(Math.max(0.2, row.outflow / SEDIMENT_REFERENCE_FLOW_M3S), 1.4);
+      const sedimentTonnes = row.outflow == null || sedimentConcentration == null
+        ? null
+        : sedimentConcentration * row.outflow * 3600 / 1000;
       return {
         ...row,
         netFlow: row.inflow == null || row.outflow == null ? null : row.inflow - row.outflow,
         powerMw,
-        utilization: powerMw == null ? null : powerMw / INSTALLED_MW
+        utilization: powerMw == null ? null : powerMw / INSTALLED_MW,
+        sedimentConcentration,
+        sedimentTonnes
       };
     }
     function setStatus(text) { $("status").textContent = text; }
@@ -1007,6 +1038,8 @@
       const layout = { left: 62, right: 52, top: 28, bottom: 62 };
       const grouped = groupPower(records);
       if (!grouped.points.length) return drawEmpty(ctx, w, h);
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute("aria-label", `${grouped.title}，共${grouped.points.length}个数据点：${grouped.points.map((d) => d.label).join("、")}`);
       $("powerTitle").textContent = grouped.title;
       $("powerSubtitle").textContent = grouped.subtitle;
       $("powerBarLabel").textContent = grouped.barLabel;
@@ -1037,22 +1070,123 @@
       const yu = (p) => bottom - (bottom - top) * (p.utilization * 100) / maxU;
       drawLine(ctx, grouped.points, xs, yu, "#c88a18", 2.8, false);
     }
+    function groupSediment(records) {
+      const monthly = state.range === "1y";
+      const groups = new Map();
+      records.forEach((row) => {
+        const e = enrich(row);
+        if (!Number.isFinite(e.sedimentTonnes) || !Number.isFinite(e.outflow)) return;
+        const key = monthly ? row.time.slice(0, 7) : row.time.slice(0, 10);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(e);
+      });
+      let points = [...groups.entries()].map(([key, rows], idx) => ({
+        idx,
+        label: monthly ? key : key.slice(5).replace("-", "/"),
+        sedimentWanTonnes: rows.reduce((sum, row) => sum + row.sedimentTonnes, 0) / 10000,
+        outflow: avg(rows.map((row) => row.outflow))
+      }));
+      if (monthly) points = points.slice(-12).map((point, idx) => ({ ...point, idx }));
+      else {
+        const dayCount = state.range === "7d" ? 7 : 31;
+        points = points.slice(-dayCount).map((point, idx) => ({ ...point, idx }));
+      }
+      return points;
+    }
+    function drawSedimentChart(records) {
+      const canvas = $("sedimentChart");
+      const { ctx, w, h } = setupCanvas(canvas);
+      const points = groupSediment(records);
+      if (!points.length) return drawEmpty(ctx, w, h);
+      const monthly = state.range === "1y";
+      $("sedimentTitle").textContent = monthly
+        ? "近一年逐月出库输沙量估算"
+        : state.range === "30d"
+          ? "近一月逐日出库输沙量估算"
+          : "近7天逐日出库输沙量估算";
+      $("sedimentSubtitle").textContent = monthly
+        ? "12个月按月汇总，非官方逐月实测"
+        : `${points.length}天按日汇总，非官方逐日实测`;
+      $("sedimentBarLabel").textContent = monthly ? "月估算出库输沙量" : "日估算出库输沙量";
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute("aria-label", `${$("sedimentTitle").textContent}，共${points.length}个数据点：${points.map((d) => d.label).join("、")}`);
+      const layout = { left: 58, right: 54, top: 28, bottom: 62 };
+      drawBase(ctx, w, h, "估算输沙量 / 万吨", "平均出库流量 / m³/s", layout);
+      const left = layout.left, right = w - layout.right, top = layout.top, bottom = h - layout.bottom;
+      const maxSediment = Math.max(0.01, ...points.map((d) => d.sedimentWanTonnes)) * 1.12;
+      const maxFlow = Math.max(1, ...points.map((d) => d.outflow)) * 1.12;
+      drawYLabels(ctx, left - 8, top, bottom, 0, maxSediment, (v) => v.toFixed(maxSediment < 1 ? 2 : 1), "right");
+      drawYLabels(ctx, w - 8, top, bottom, 0, maxFlow, (v) => fmt.format(v), "right");
+      const step = (right - left) / Math.max(1, points.length);
+      const barW = Math.max(5, Math.min(48, step * .62));
+      const labelEvery = Math.max(1, Math.ceil(points.length / 8));
+      points.forEach((d, i) => {
+        const x = left + step * i + step / 2;
+        const barHeight = (bottom - top) * d.sedimentWanTonnes / maxSediment;
+        ctx.fillStyle = "#9a6435";
+        ctx.fillRect(x - barW / 2, bottom - barHeight, barW, barHeight);
+        if (i % labelEvery === 0 || i === points.length - 1) {
+          ctx.save();
+          ctx.translate(x, bottom + 14);
+          ctx.rotate(points.length >= 12 ? -Math.PI / 4 : 0);
+          ctx.fillStyle = "#657685";
+          ctx.font = "10px sans-serif";
+          ctx.textAlign = points.length >= 12 ? "right" : "center";
+          ctx.fillText(d.label, 0, 0);
+          ctx.restore();
+        }
+      });
+      const xs = (p) => left + step * p.idx + step / 2;
+      const yf = (p) => bottom - (bottom - top) * p.outflow / maxFlow;
+      drawLine(ctx, points, xs, yf, "#0277a8", 2.6, false);
+    }
     function syncPowerHeading(range) {
       if (range === "7d") {
         $("powerTitle").textContent = "近7天逐日估算发电量与设备利用率";
         $("powerSubtitle").textContent = "按天汇总估算发电量，折线为日均利用率";
         $("powerBarLabel").textContent = "日估算发电量";
       } else if (range === "30d") {
-        $("powerTitle").textContent = "近一月按月估算发电量与设备利用率";
-        $("powerSubtitle").textContent = "按自然月汇总最近一个月覆盖到的记录";
+        $("powerTitle").textContent = "近6个月按月估算发电量与设备利用率";
+        $("powerSubtitle").textContent = "正在读取近一年快照以汇总最近6个自然月";
         $("powerBarLabel").textContent = "月估算发电量";
       } else {
-        $("powerTitle").textContent = "近四年按年估算发电量与设备利用率";
-        $("powerSubtitle").textContent = "按自然年汇总近四年可获得的真实水情记录";
-        $("powerBarLabel").textContent = "年估算发电量";
+        $("powerTitle").textContent = "近四年发电量与设备利用率";
+        $("powerSubtitle").textContent = "2023—2025年官方数据，2026年截至当前为水情估算";
+        $("powerBarLabel").textContent = "官方/估算发电量";
       }
     }
     function groupPower(records) {
+      if (state.range === "1y") {
+        const currentYear = String(new Date().getFullYear());
+        const currentRows = records
+          .filter((row) => row.time.startsWith(currentYear))
+          .map(enrich)
+          .filter((row) => Number.isFinite(row.powerMw));
+        const currentEnergyGwh = currentRows.reduce((sum, row) => sum + row.powerMw / 1000, 0);
+        const completed = OFFICIAL_ANNUAL_POWER.map((item) => ({
+          label: `${item.year}年`,
+          energyGwh: item.energyGwh,
+          utilization: item.energyGwh / (INSTALLED_MW * 8760 / 1000),
+          source: item.source
+        }));
+        const points = [
+          ...completed,
+          {
+            label: `${currentYear}年至今`,
+            energyGwh: currentEnergyGwh,
+            utilization: avg(currentRows.map((row) => row.utilization)) ?? 0,
+            source: "真实水情估算"
+          }
+        ].slice(-4).map((point, idx) => ({ ...point, idx }));
+        return {
+          title: "近四年发电量与设备利用率",
+          subtitle: "2023—2025年为长江电力官方发电量，2026年为截至当前的水情估算",
+          axisTitle: "发电量 / GWh",
+          barLabel: "官方/估算发电量",
+          rotateLabels: false,
+          points
+        };
+      }
       const config = state.range === "7d"
         ? {
             key: (row) => row.time.slice(0, 10),
@@ -1090,7 +1224,7 @@
         if (!groups.has(key)) groups.set(key, { key, rows: [] });
         groups.get(key).rows.push(e);
       });
-      const points = [...groups.values()].map((group, idx) => {
+      let points = [...groups.values()].map((group, idx) => {
         const energyGwh = group.rows.reduce((sum, row) => sum + row.powerMw / 1000, 0);
         return {
           idx,
@@ -1099,6 +1233,13 @@
           utilization: avg(group.rows.map((row) => row.utilization)) ?? 0
         };
       });
+      if (state.range === "7d") {
+        points = points.slice(-7).map((point, idx) => ({ ...point, idx }));
+      } else if (state.range === "30d") {
+        points = points.slice(-6).map((point, idx) => ({ ...point, idx }));
+        config.title = "近6个月按月估算发电量与设备利用率";
+        config.subtitle = "按自然月汇总最近6个月真实水情估算";
+      }
       return { ...config, points };
     }
     function drawEmpty(ctx, w, h) {
@@ -1138,8 +1279,9 @@
       drawFlowChart(records);
       drawDailyChart(records);
       drawYearChart(records);
-      const powerRecords = state.range === "1y" && state.powerRecords.length ? state.powerRecords : records;
+      const powerRecords = state.powerRecords.length ? state.powerRecords : records;
       drawPowerChart(powerRecords);
+      drawSedimentChart(records);
       renderTable(records);
     }
     async function load(range = state.range) {
@@ -1153,29 +1295,19 @@
         const records = await fetchHydro(range);
         if (requestId !== state.requestId) return;
         state.records = records.map(enrich);
-        state.powerRecords = range === "1y" ? [] : state.records;
+        state.powerRecords = range === "30d" && state.allRecords.length ? state.allRecords : state.records;
         if (range === "1y") state.allRecords = state.records;
         renderAll();
         const latest = state.records[state.records.length - 1]?.time || "--";
         setStatus(`已更新：${latest}。数据源：${state.sourceMode}；记录 ${state.records.length} 条。`);
-        if (range === "1y") {
-          setStatus(`已更新：${latest}。正在补齐近四年发电量与设备利用率图表...`);
-          fetchHydro("4y")
-            .then((powerRecords) => {
-              if (requestId !== state.requestId || state.range !== "1y") return;
-              state.powerRecords = powerRecords.map(enrich);
-              drawPowerChart(state.powerRecords);
-              const powerLatest = state.powerRecords[state.powerRecords.length - 1]?.time || latest;
-              setStatus(`已更新：${latest}。发电量与设备利用率图表已补齐近四年数据到 ${powerLatest}；当前明细表仍显示近一年记录。`);
-            })
-            .catch((err) => {
-              if (requestId === state.requestId && state.range === "1y") setStatus(`已更新：${latest}。近四年发电图补齐失败：${err.message || err}`);
-            });
-        }
         if (range !== "1y" && !state.allRecords.length) {
           fetchHydro("1y")
             .then((yearRecords) => {
               state.allRecords = yearRecords.map(enrich);
+              if (requestId === state.requestId && state.range === "30d") {
+                state.powerRecords = state.allRecords;
+                drawPowerChart(state.powerRecords);
+              }
               const yearLatest = state.allRecords[state.allRecords.length - 1]?.time || latest;
               setStatus(`已更新：${latest}。近一年后台缓存已补齐到 ${yearLatest}；当前明细表仅显示有入库与入出差的记录。`);
             })
@@ -1194,10 +1326,10 @@
       }
     }
     function downloadCsv() {
-      const header = ["time", "level_m", "storage_10^6_m3", "inflow_m3s", "outflow_m3s", "netflow_m3s", "estimated_power_mw", "estimated_utilization"];
+      const header = ["time", "level_m", "storage_10^6_m3", "inflow_m3s", "outflow_m3s", "netflow_m3s", "estimated_power_mw", "estimated_utilization", "estimated_sediment_concentration_kg_m3", "estimated_sediment_tonnes_per_hour"];
       const rows = state.records.map((r) => {
         const e = enrich(r);
-        return [r.time, r.level, r.storage, r.inflow, r.outflow, e.netFlow, e.powerMw, e.utilization].map((v) => v == null ? "" : v).join(",");
+        return [r.time, r.level, r.storage, r.inflow, r.outflow, e.netFlow, e.powerMw, e.utilization, e.sedimentConcentration, e.sedimentTonnes].map((v) => v == null ? "" : v).join(",");
       });
       const blob = new Blob([[header.join(","), ...rows].join("\n")], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
