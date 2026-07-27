@@ -11,11 +11,14 @@ const execFileAsync = promisify(execFile);
 
 const STATION_URL = "https://hbwater.wetruetech.com/water/portal/wx_station_info";
 const STATION = { stationCode: "60106980", stationType: "RR" };
+const SOURCE_MODE = "GitHub Actions 每日快照 → 湖北水文公开页面";
+const FOUR_YEARS_IN_DAYS = 366 * 4;
+const OVERLAP_DAYS = 2;
 const RANGES = [
   ["7d", 7],
   ["30d", 31],
   ["1y", 366],
-  ["4y", 366 * 4]
+  ["4y", FOUR_YEARS_IN_DAYS]
 ];
 
 function pad(n) {
@@ -32,18 +35,21 @@ function addDays(date, days) {
   return d;
 }
 
-function splitWindows(days) {
-  const end = new Date();
-  end.setMinutes(59, 59, 0);
-  const start = addDays(end, -days);
+function splitWindows(start, end) {
   const windows = [];
-  let cursor = start;
+  let cursor = new Date(start);
   while (cursor < end) {
     const next = new Date(Math.min(addDays(cursor, 30).getTime(), end.getTime()));
     windows.push([new Date(cursor), next]);
     cursor = next;
   }
   return windows;
+}
+
+function fullHistoryWindow() {
+  const end = new Date();
+  end.setMinutes(59, 59, 0);
+  return [addDays(end, -FOUR_YEARS_IN_DAYS), end];
 }
 
 function buildOfficialUrl(start, end) {
@@ -118,8 +124,16 @@ async function fetchOfficial(url) {
     "-L",
     "--silent",
     "--show-error",
+    "--fail-with-body",
+    "--retry",
+    "5",
+    "--retry-delay",
+    "5",
+    "--retry-all-errors",
+    "--connect-timeout",
+    "20",
     "--max-time",
-    "60",
+    "90",
     "-A",
     "Mozilla/5.0 Three-Gorges-Monitor/1.0",
     url
@@ -127,13 +141,48 @@ async function fetchOfficial(url) {
   return stdout;
 }
 
-async function fetchFourYearRecords() {
-  const chunks = [];
-  for (const [start, end] of splitWindows(366 * 4)) {
-    const html = await fetchOfficial(buildOfficialUrl(start, end));
-    chunks.push(...parseHydroHtml(html));
+async function readExistingRecords() {
+  try {
+    const text = await fs.readFile(path.join(dataDir, "hydro-4y.json"), "utf8");
+    const payload = JSON.parse(text);
+    return Array.isArray(payload.records) ? payload.records : [];
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      console.warn(`Existing snapshot could not be read: ${error.message}`);
+    }
+    return [];
   }
-  return normalizeRecords(chunks, 366 * 4);
+}
+
+function fetchStart(existingRecords, historyStart) {
+  const latest = existingRecords.reduce(
+    (max, row) => Number.isFinite(row.ts) ? Math.max(max, row.ts) : max,
+    0
+  );
+  if (!latest) return historyStart;
+  return new Date(Math.max(
+    historyStart.getTime(),
+    addDays(new Date(latest), -OVERLAP_DAYS).getTime()
+  ));
+}
+
+async function fetchUpdatedRecords(existingRecords) {
+  const [historyStart, end] = fullHistoryWindow();
+  const start = fetchStart(existingRecords, historyStart);
+  const windows = splitWindows(start, end);
+  const chunks = [];
+  console.log(`Fetching ${windows.length} window(s), ${localHourString(start)} -> ${localHourString(end)}`);
+  for (let i = 0; i < windows.length; i += 1) {
+    const [windowStart, windowEnd] = windows[i];
+    const html = await fetchOfficial(buildOfficialUrl(windowStart, windowEnd));
+    const records = parseHydroHtml(html);
+    console.log(`Window ${i + 1}/${windows.length}: ${records.length} records`);
+    chunks.push(...records);
+  }
+  if (chunks.length === 0) {
+    throw new Error("湖北水文页面返回成功，但没有解析到任何水文记录；保留旧快照并停止提交。");
+  }
+  return normalizeRecords([...existingRecords, ...chunks], FOUR_YEARS_IN_DAYS);
 }
 
 async function writeJson(file, payload) {
@@ -142,13 +191,15 @@ async function writeJson(file, payload) {
 
 await fs.mkdir(dataDir, { recursive: true });
 const generatedAt = new Date().toISOString();
-const allRecords = await fetchFourYearRecords();
+const existingRecords = await readExistingRecords();
+console.log(`Existing snapshot: ${existingRecords.length} records`);
+const allRecords = await fetchUpdatedRecords(existingRecords);
 
 for (const [range, days] of RANGES) {
   const records = normalizeRecords(allRecords, days);
   await writeJson(`hydro-${range}.json`, {
     generatedAt,
-    sourceMode: "GitHub Actions 每日快照 -> 湖北水文公开页面",
+    sourceMode: SOURCE_MODE,
     range,
     station: STATION,
     records
@@ -158,6 +209,6 @@ for (const [range, days] of RANGES) {
 
 await writeJson("manifest.json", {
   generatedAt,
-  sourceMode: "GitHub Actions 每日快照 -> 湖北水文公开页面",
+  sourceMode: SOURCE_MODE,
   ranges: Object.fromEntries(RANGES.map(([range]) => [range, `data/hydro-${range}.json`]))
 });
