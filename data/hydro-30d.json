@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-01T23:13:06.854Z",
+  "generatedAt": "2026-08-02T23:13:37.768Z",
   "sourceMode": "GitHub Actions 每日快照 → 湖北水文公开页面",
   "range": "30d",
   "station": {
@@ -7,198 +7,6 @@
     "stationType": "RR"
   },
   "records": [
-    {
-      "time": "2026-07-02 08",
-      "ts": 1782950400000,
-      "level": 148.39,
-      "storage": 18847,
-      "inflow": 23400,
-      "outflow": 29600
-    },
-    {
-      "time": "2026-07-02 09",
-      "ts": 1782954000000,
-      "level": 148.48,
-      "storage": 18893,
-      "inflow": null,
-      "outflow": 26800
-    },
-    {
-      "time": "2026-07-02 10",
-      "ts": 1782957600000,
-      "level": 148.57,
-      "storage": 18940,
-      "inflow": null,
-      "outflow": 24200
-    },
-    {
-      "time": "2026-07-02 11",
-      "ts": 1782961200000,
-      "level": 148.63,
-      "storage": 18971,
-      "inflow": null,
-      "outflow": 24000
-    },
-    {
-      "time": "2026-07-02 12",
-      "ts": 1782964800000,
-      "level": 148.73,
-      "storage": 19022,
-      "inflow": null,
-      "outflow": 24000
-    },
-    {
-      "time": "2026-07-02 13",
-      "ts": 1782968400000,
-      "level": 148.76,
-      "storage": 19038,
-      "inflow": null,
-      "outflow": 23900
-    },
-    {
-      "time": "2026-07-02 14",
-      "ts": 1782972000000,
-      "level": 148.69,
-      "storage": 19002,
-      "inflow": 23400,
-      "outflow": 26500
-    },
-    {
-      "time": "2026-07-02 15",
-      "ts": 1782975600000,
-      "level": 148.6,
-      "storage": 18955,
-      "inflow": null,
-      "outflow": 29800
-    },
-    {
-      "time": "2026-07-02 16",
-      "ts": 1782979200000,
-      "level": 148.51,
-      "storage": 18909,
-      "inflow": null,
-      "outflow": 30000
-    },
-    {
-      "time": "2026-07-02 17",
-      "ts": 1782982800000,
-      "level": 148.42,
-      "storage": 18863,
-      "inflow": null,
-      "outflow": 30100
-    },
-    {
-      "time": "2026-07-02 18",
-      "ts": 1782986400000,
-      "level": 148.32,
-      "storage": 18811,
-      "inflow": null,
-      "outflow": 30100
-    },
-    {
-      "time": "2026-07-02 19",
-      "ts": 1782990000000,
-      "level": 148.24,
-      "storage": 18770,
-      "inflow": null,
-      "outflow": 30100
-    },
-    {
-      "time": "2026-07-02 20",
-      "ts": 1782993600000,
-      "level": 148.17,
-      "storage": 18734,
-      "inflow": 23700,
-      "outflow": 30200
-    },
-    {
-      "time": "2026-07-02 21",
-      "ts": 1782997200000,
-      "level": 148.11,
-      "storage": 18704,
-      "inflow": null,
-      "outflow": 30400
-    },
-    {
-      "time": "2026-07-02 22",
-      "ts": 1783000800000,
-      "level": 148.16,
-      "storage": 18729,
-      "inflow": null,
-      "outflow": 27900
-    },
-    {
-      "time": "2026-07-02 23",
-      "ts": 1783004400000,
-      "level": 148.14,
-      "storage": 18719,
-      "inflow": null,
-      "outflow": 27900
-    },
-    {
-      "time": "2026-07-03 00",
-      "ts": 1783008000000,
-      "level": 148.13,
-      "storage": 18714,
-      "inflow": null,
-      "outflow": 27800
-    },
-    {
-      "time": "2026-07-03 01",
-      "ts": 1783011600000,
-      "level": 148.18,
-      "storage": 18740,
-      "inflow": null,
-      "outflow": 26000
-    },
-    {
-      "time": "2026-07-03 02",
-      "ts": 1783015200000,
-      "level": 148.18,
-      "storage": 18740,
-      "inflow": 23000,
-      "outflow": 26000
-    },
-    {
-      "time": "2026-07-03 03",
-      "ts": 1783018800000,
-      "level": 148.21,
-      "storage": 18755,
-      "inflow": null,
-      "outflow": 25900
-    },
-    {
-      "time": "2026-07-03 04",
-      "ts": 1783022400000,
-      "level": 148.19,
-      "storage": 18745,
-      "inflow": null,
-      "outflow": 25900
-    },
-    {
-      "time": "2026-07-03 05",
-      "ts": 1783026000000,
-      "level": 148.21,
-      "storage": 18755,
-      "inflow": null,
-      "outflow": 25900
-    },
-    {
-      "time": "2026-07-03 06",
-      "ts": 1783029600000,
-      "level": 148.18,
-      "storage": 18740,
-      "inflow": null,
-      "outflow": 25900
-    },
-    {
-      "time": "2026-07-03 07",
-      "ts": 1783033200000,
-      "level": 148.1,
-      "storage": 18699,
-      "inflow": null,
-      "outflow": 27400
-    },
     {
       "time": "2026-07-03 08",
       "ts": 1783036800000,
@@ -5894,6 +5702,198 @@
       "storage": 19599,
       "inflow": null,
       "outflow": 20500
+    },
+    {
+      "time": "2026-08-02 00",
+      "ts": 1785628800000,
+      "level": 149.93,
+      "storage": 19653,
+      "inflow": null,
+      "outflow": 18600
+    },
+    {
+      "time": "2026-08-02 01",
+      "ts": 1785632400000,
+      "level": 150.06,
+      "storage": 19722,
+      "inflow": null,
+      "outflow": 16800
+    },
+    {
+      "time": "2026-08-02 02",
+      "ts": 1785636000000,
+      "level": 150.12,
+      "storage": 19755,
+      "inflow": 20000,
+      "outflow": 16800
+    },
+    {
+      "time": "2026-08-02 03",
+      "ts": 1785639600000,
+      "level": 150.18,
+      "storage": 19787,
+      "inflow": null,
+      "outflow": 16800
+    },
+    {
+      "time": "2026-08-02 04",
+      "ts": 1785643200000,
+      "level": 150.21,
+      "storage": 19804,
+      "inflow": null,
+      "outflow": 16800
+    },
+    {
+      "time": "2026-08-02 05",
+      "ts": 1785646800000,
+      "level": 150.23,
+      "storage": 19815,
+      "inflow": null,
+      "outflow": 16800
+    },
+    {
+      "time": "2026-08-02 06",
+      "ts": 1785650400000,
+      "level": 150.26,
+      "storage": 19831,
+      "inflow": null,
+      "outflow": 16800
+    },
+    {
+      "time": "2026-08-02 07",
+      "ts": 1785654000000,
+      "level": 150.26,
+      "storage": 19831,
+      "inflow": null,
+      "outflow": 16700
+    },
+    {
+      "time": "2026-08-02 08",
+      "ts": 1785657600000,
+      "level": 150.27,
+      "storage": 19837,
+      "inflow": 22000,
+      "outflow": 16700
+    },
+    {
+      "time": "2026-08-02 09",
+      "ts": 1785661200000,
+      "level": 150.29,
+      "storage": 19848,
+      "inflow": null,
+      "outflow": 16700
+    },
+    {
+      "time": "2026-08-02 10",
+      "ts": 1785664800000,
+      "level": 150.31,
+      "storage": 19859,
+      "inflow": null,
+      "outflow": 16700
+    },
+    {
+      "time": "2026-08-02 11",
+      "ts": 1785668400000,
+      "level": 150.34,
+      "storage": 19875,
+      "inflow": null,
+      "outflow": 16700
+    },
+    {
+      "time": "2026-08-02 12",
+      "ts": 1785672000000,
+      "level": 150.36,
+      "storage": 19886,
+      "inflow": null,
+      "outflow": 16700
+    },
+    {
+      "time": "2026-08-02 13",
+      "ts": 1785675600000,
+      "level": 150.38,
+      "storage": 19897,
+      "inflow": null,
+      "outflow": 16600
+    },
+    {
+      "time": "2026-08-02 14",
+      "ts": 1785679200000,
+      "level": 150.4,
+      "storage": 19908,
+      "inflow": 23000,
+      "outflow": 16500
+    },
+    {
+      "time": "2026-08-02 15",
+      "ts": 1785682800000,
+      "level": 150.37,
+      "storage": 19892,
+      "inflow": null,
+      "outflow": 18900
+    },
+    {
+      "time": "2026-08-02 16",
+      "ts": 1785686400000,
+      "level": 150.27,
+      "storage": 19837,
+      "inflow": null,
+      "outflow": 22300
+    },
+    {
+      "time": "2026-08-02 17",
+      "ts": 1785690000000,
+      "level": 150.09,
+      "storage": 19738,
+      "inflow": null,
+      "outflow": 24900
+    },
+    {
+      "time": "2026-08-02 18",
+      "ts": 1785693600000,
+      "level": 150,
+      "storage": 19690,
+      "inflow": null,
+      "outflow": 25100
+    },
+    {
+      "time": "2026-08-02 19",
+      "ts": 1785697200000,
+      "level": 149.93,
+      "storage": 19653,
+      "inflow": null,
+      "outflow": 25100
+    },
+    {
+      "time": "2026-08-02 20",
+      "ts": 1785700800000,
+      "level": 149.89,
+      "storage": 19631,
+      "inflow": 25000,
+      "outflow": 25200
+    },
+    {
+      "time": "2026-08-02 21",
+      "ts": 1785704400000,
+      "level": 149.85,
+      "storage": 19610,
+      "inflow": null,
+      "outflow": 25300
+    },
+    {
+      "time": "2026-08-02 22",
+      "ts": 1785708000000,
+      "level": 149.83,
+      "storage": 19599,
+      "inflow": null,
+      "outflow": 23800
+    },
+    {
+      "time": "2026-08-02 23",
+      "ts": 1785711600000,
+      "level": 149.96,
+      "storage": 19669,
+      "inflow": null,
+      "outflow": 20300
     }
   ]
 }
